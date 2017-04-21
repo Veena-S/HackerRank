@@ -1,0 +1,516 @@
+/**
+PLAY WITH WORDS
+
+Problem Statement
+-----------------
+
+Shaka and his brother have created a boring game which is played like this:
+
+They take a word composed of lowercase English letters and try to get the maximum possible score by building 
+exactly 2 palindromic subsequences. The score obtained is the product of these 2 subsequences.
+
+Let's say A and B are two subsequences from the initial string. If Ai & Aj are the smallest and the largest
+positions (from the initial word) respectively in A ; and Bi & Bj are the smallest and the largest positions 
+(from the initial word) respectively in B, then the following statements hold true:
+
+Ai=Aj, 
+Bi=Bj, & 
+Aj<Bi. 
+i.e., the positions of the subsequences should not cross over each other.
+
+Hence the score obtained is the product of lengths of subsequences A & B. Such subsequences can be numerous 
+for a larger initial word, and hence it becomes harder to find out the maximum possible score. 
+Can you help Shaka and his brother find this out?
+
+Input Format 
+Input contains a word S composed of lowercase English letters in a single line.
+
+Output Format 
+Output the maximum score the boys can get from S.
+
+Constraints 
+1<|S|=3000 
+each character will be a lower case English alphabet.
+
+Sample Input:
+eeegeeksforskeeggeeks
+
+Sample Output:
+50
+
+Explanation
+A possible optimal solution is eee-g-ee-ksfor-skeeggeeks being eeeee the one subsequence and skeeggeeks the other one
+*/
+
+#include <cmath>
+#include <cstdio>
+#include <vector>
+#include <map>
+#include <set>
+#include <iostream>
+#include <algorithm>
+#include <string>
+#include "Windows.h"
+
+using namespace std;
+
+const string UNDER_SCORE = "_";
+const UINT MIN_PALIN_LENGTH = 1U;
+
+struct PALINDROME_INFO
+{
+    string m_strData;
+    int m_nStartIndex;  // Starting index, relative to the parent word
+    int m_nEndIndex;    // End index, relative to the parent word
+    size_t m_uLength;   // Length of the string.
+
+    PALINDROME_INFO() : m_strData( "" ), m_nStartIndex( -1 ), m_nEndIndex( -1 ), m_uLength( 0 )
+    {
+    }
+
+    PALINDROME_INFO( const PALINDROME_INFO& stSourceInfo_i )
+    {
+        m_strData = stSourceInfo_i.m_strData;
+        m_nStartIndex = stSourceInfo_i.m_nStartIndex;
+        m_nEndIndex = stSourceInfo_i.m_nEndIndex;
+        m_uLength = stSourceInfo_i.m_uLength;
+    }
+
+    PALINDROME_INFO& operator = ( const PALINDROME_INFO& stSourceInfo_i )
+    {
+        if( this == &stSourceInfo_i )
+        {
+            return *this;
+        }
+        m_strData = stSourceInfo_i.m_strData;
+        m_nStartIndex = stSourceInfo_i.m_nStartIndex;
+        m_nEndIndex = stSourceInfo_i.m_nEndIndex;
+        m_uLength = stSourceInfo_i.m_uLength;
+        return *this;
+    }
+
+};
+
+
+typedef vector<string> PALIN_STRING_VECTOR;
+typedef vector<PALINDROME_INFO> PALINDROME_VECTOR;
+typedef map<string, PALINDROME_INFO> PALINDROME_MAP;
+typedef map<string, PALINDROME_VECTOR> PALINDROME_VECTOR_MAP;
+typedef set<string> PALINDROME_SET;
+typedef map<string, size_t> PALINDROME_LENGTH_MAP;
+
+
+// Class to find the possible palindromes from the specified word.
+// It also identifies the start and end index of the palindrome (start/end) characters respective to 
+// the parent word. Also, calculates the length of the palindromes.
+class PalindromeFinder
+{
+    public:
+
+    PalindromeFinder() : m_strParentWord( "" ), m_nNumOfPalindromesNeeded( 0 )
+    {
+    }
+
+    PalindromeFinder( const string& strParentWord, int nPalindromeCount_i = 0 ) : 
+                                                         m_strParentWord( strParentWord ),
+                                                         m_uCurrentProcessingStringStartIndex( 0 ),
+                                                         m_uCurrentProcessingStringEndIndex( 0 ),
+                                                         m_nNumOfPalindromesNeeded( nPalindromeCount_i )
+    {
+    }
+
+
+    ~PalindromeFinder()
+    {
+    }
+
+
+    void SetPalindromeFinderData( const string& strParentWord, int nPalindromeCount_i )
+    {
+        m_strParentWord = strParentWord;
+        m_nNumOfPalindromesNeeded = nPalindromeCount_i;
+    }
+
+
+    /// Main function to start the processing of palindrome identification
+    bool GetPalindromes( PALINDROME_MAP& PalindromeMap_o )
+    {
+        try
+        {
+            size_t uFullWordLen = m_strParentWord.length();
+            // Consider from the first character.
+            // With each character consider the next one. Then the next and so on, until the last one
+            // In between any valid palindromes are found, store in the vector.
+            // If a word considered at a time is not palindrome, check whether it can be a palindrome 
+            // if any of its characters are removed.
+            // Remove each character in the reverse order i.e. start from the end
+            string strProcessingData = "";
+            string strInitalData = "";
+            string strTempProcData = "";
+            size_t uStartIndex = 0;
+            // bool bSubStringTaken = false;
+            PALINDROME_SET::_Pairib SetPair;
+            string strUniquePalin = "";
+            while( uStartIndex != uFullWordLen )
+            {
+                // Get the substring up to the start index, excluding it.
+                strInitalData = m_strParentWord.substr( 0, uStartIndex );
+                /*bSubStringTaken = ( 0 != uStartIndex ) ? true : false;*/
+                for( size_t uCharIdx = uStartIndex; uCharIdx < uFullWordLen; ++uCharIdx )
+                {
+                    // Get the character at the index
+                    strProcessingData = strInitalData + m_strParentWord.at( uCharIdx );
+                    // bSubStringTaken = ( 0 != uCharIdx ) ? true : false;
+                    // Start from the next character
+                    for( size_t uNextIdx = uCharIdx + 1; uNextIdx < uFullWordLen; ++uNextIdx )
+                    {
+                        // The character is appended to the previous substring to form the processing string
+                        strProcessingData += m_strParentWord.at( uNextIdx );
+                        // m_uCurrentProcessingStringStartIndex = ( !bSubStringTaken ) ? 0 : uCharIdx;
+                        m_uCurrentProcessingStringStartIndex = ( 0 == uStartIndex ) ? uCharIdx : 0;
+                        m_uCurrentProcessingStringEndIndex = uNextIdx;
+
+                        size_t uProcDataLength = strProcessingData.length();
+                        // Check whether this string is palindrome
+                        if(( uProcDataLength > MIN_PALIN_LENGTH ) && IsPalindrome( strProcessingData ))
+                        {
+                            PALINDROME_INFO stPalinInfo;
+                            stPalinInfo.m_strData = strProcessingData;
+                            stPalinInfo.m_nStartIndex = m_uCurrentProcessingStringStartIndex;
+                            stPalinInfo.m_nEndIndex = m_uCurrentProcessingStringEndIndex;
+                            stPalinInfo.m_uLength = uProcDataLength;
+                            // Add this to Palindrome vector
+                            GenerateUniqueString( stPalinInfo, strUniquePalin );
+                            SetPair = m_PalindromesFoundSet.insert( strUniquePalin );
+                            if( SetPair.second )
+                            {
+                                // PalindromeVecotr_o.push_back( stPalinInfo );
+                                FillPalindromeMap( stPalinInfo, PalindromeMap_o );
+                            }
+                        }
+                        // The considered string as such is not palindrome
+                        // Remove each character in the reverse order, group by group
+                        // And check whether that will result in a palindrome
+                        else
+                        {
+                            if( !ReverseCheckPalindrome( strProcessingData, PalindromeMap_o ))
+                            {
+                            }
+                        }
+                    }
+                }
+                uStartIndex++;
+            }
+            
+        }
+        catch( ... )
+        {
+            return false;
+        }
+        return true;
+    }
+
+
+    // Remove the duplicated Palindromes, as per the index
+    // i.e. the if same palindromes are found at multiple places, check the first and last index.
+
+    // This function sorts the palindrome map based on the length of the palins present in the map
+    bool SortPalindromes( /*PALINDROME_VECTOR_MAP& PalindromeVctrMap_io */)
+    {
+        try
+        {
+//             PALINDROME_VECTOR_MAP::iterator itrPalinMap = PalindromeVctrMap_io.begin();
+//             PALINDROME_VECTOR_MAP::iterator itrPalinMapEnd = PalindromeVctrMap_io.end();
+//             PALINDROME_VECTOR_MAP::iterator itrSubPalinMap = PalindromeVctrMap_io.begin();
+//             // first loop starts from the second item present in the map.
+//             size_t uCurrentLength = 0;
+//             size_t uPreviousLength = 0;
+//             for( itrPalinMap = ++itrPalinMap ; itrPalinMap != itrPalinMapEnd; ++itrPalinMap )
+//             {
+//                 uCurrentLength = itrPalinMap->second[0].m_uLength;
+//                 // second loop starts from the first item present in the map
+//                 for( itrSubPalinMap; itrSubPalinMap != itrPalinMapEnd; ++itrSubPalinMap )
+//                 {
+//                     uPreviousLength = itrSubPalinMap->second[0].m_uLength;
+//                     // Compare the two lengths
+//                     if( uCurrentLength < uPreviousLength )
+//                     {
+//                         // replace the values
+//                         // PalindromeVctrMap_io.
+//                     }
+//                 }
+//             }
+
+            const int START_INDEX = 1;
+            size_t nCurrentValue = 0;
+            string strCurrent = "";
+            size_t nPreviousValue = 0;
+            string strPrevious = "";
+            size_t uTotalSize = m_PalinStringVector.size();
+            for( size_t nIndex = START_INDEX; nIndex < uTotalSize; ++nIndex )
+            {
+                strCurrent = m_PalinStringVector[nIndex];
+                nCurrentValue = strCurrent.length();
+                for( size_t nSubIndex = 0; nSubIndex < nIndex; ++nSubIndex )
+                {
+                    strPrevious = m_PalinStringVector[nSubIndex];
+                    nPreviousValue = strPrevious.length();
+                    if( nCurrentValue < nPreviousValue )
+                    {
+                        m_PalinStringVector[nSubIndex] = strCurrent;
+                        m_PalinStringVector[nIndex] = strPrevious;
+                        // The value at currently considering index is changed.
+                        strCurrent = m_PalinStringVector[nIndex];
+                        nCurrentValue = strCurrent.length();
+                    }
+                }
+            }
+
+            string strData = "";
+            for( size_t uIdx = 0; uIdx < uTotalSize; ++uIdx )
+            {
+                strData = m_PalinStringVector[uIdx];
+                m_PalinLengthMap[ strData ] = strData.length();
+            }
+        }
+        catch( ... )
+        {
+            return false;
+        }
+        return true;
+    }
+
+
+    bool GetHighestProduct( const PALINDROME_MAP& PalindromeMap_i, UINT& uProduct_o )
+    {
+        try
+        {
+
+        }
+        catch( ... )
+        {
+            return false;
+        }
+        return true;
+    }
+
+
+    private:
+
+        void GenerateUniqueString( const PALINDROME_INFO& stPalinInfo_i, string& strUniquePalin_o )
+        {
+            char cIndexValue[ MAX_PATH ] = { 0 };
+            sprintf_s( cIndexValue, sizeof( size_t ), "%u", stPalinInfo_i.m_nStartIndex );
+            strUniquePalin_o = stPalinInfo_i.m_strData + UNDER_SCORE + cIndexValue;
+            sprintf_s( cIndexValue, sizeof( size_t ), "%u", stPalinInfo_i.m_nEndIndex );
+            strUniquePalin_o += UNDER_SCORE + cIndexValue + UNDER_SCORE;
+            sprintf_s( cIndexValue, sizeof( size_t ), "%u", stPalinInfo_i.m_uLength );
+            strUniquePalin_o += cIndexValue;
+        }
+
+    // Check whether a string is palindrome by removing the characters in the reverse order
+    bool ReverseCheckPalindrome( const string& strProcessingData_i, PALINDROME_MAP& PalindromeMap_io )
+    {
+        try
+        {
+            string strProcessingData = strProcessingData_i;
+            size_t uRelativeParentStartIdx = m_uCurrentProcessingStringStartIndex;
+            size_t uRelativeParentEndIdx = m_uCurrentProcessingStringEndIndex;
+            return ReverseExtractAndCheckPalindrome( strProcessingData, uRelativeParentStartIdx, 
+                                                     uRelativeParentEndIdx, PalindromeMap_io );
+        }
+        catch( ... )
+        {
+            return false;
+        }
+    }
+
+
+    bool ReverseExtractAndCheckPalindrome( string& strData_io, size_t uRelativeParentStartIdx_i, 
+                                           size_t uRelativeParentEndIdx_i,
+                                           PALINDROME_MAP& PalindromeMap_io )
+    {
+        try
+        {
+            string strTempProcData = strData_io;
+            // Erase the character at that respective index
+            // Erasing can be done either by using reverse iterator or
+            // changing the index and length respectively.
+
+            char cIndex[MAX_PATH] = { 0 };
+            string strUniquePalin = "";
+
+            PALINDROME_SET::_Pairib SetPair;
+            size_t uIncrementor = 1U;
+            size_t uTotalLen = strTempProcData.length();
+            size_t uIndexCounter = 0;
+            const size_t MAX_INDEX = uTotalLen - 1;
+            while( uIncrementor <= uTotalLen )
+            {
+                uIndexCounter = 0;
+                // Erasing from the last character in the string
+                for( size_t uIndex = ( MAX_INDEX )- uIncrementor; ( uIndex >= 0 && uIndex < uTotalLen ); )
+                {
+                    uIndexCounter++;
+                    strTempProcData.erase( uIndex, uIncrementor );
+                    size_t uTempDataLength = strTempProcData.length();
+                    // Check whether Palindrome
+                    if(( uTempDataLength > MIN_PALIN_LENGTH ) && IsPalindrome( strTempProcData ))
+                    {
+                        // SetPair = m_PalindromesFoundSet.insert( strTempProcData );
+                        //if( SetPair.second )
+                        // Calculate the start and end index relative to the parent word
+                        PALINDROME_INFO stPalinInfo;
+                        stPalinInfo.m_strData = strTempProcData;
+                        size_t uRelativeStartIdxAdder = ( uIncrementor == MAX_INDEX ) ? ( uIncrementor ) : 
+                                                        (( uIndexCounter == MAX_INDEX ) ? ( uIndexCounter ) :
+                                                         ((( uIncrementor + uIndexCounter ) == MAX_INDEX ) ?
+                                                         ( MAX_INDEX ) : (( uIncrementor > uIndexCounter ) ?
+                                                         ( uIncrementor ) : ( uIndexCounter ))));
+
+                        stPalinInfo.m_nStartIndex = ( 0 != uIndex ) ?
+                                                    ( uRelativeParentStartIdx_i ) :
+                                                    ( uRelativeParentStartIdx_i + uRelativeStartIdxAdder );
+
+                        stPalinInfo.m_nEndIndex = uRelativeParentEndIdx_i;
+                        stPalinInfo.m_uLength = uTempDataLength;
+                        GenerateUniqueString( stPalinInfo, strUniquePalin );
+                        SetPair = m_PalindromesFoundSet.insert( strUniquePalin );
+                        // Add this to Palindrome vector
+                        if( SetPair.second )
+                        {
+                            FillPalindromeMap( stPalinInfo, PalindromeMap_io );
+                        }
+                    }
+                    uIndex -= uIncrementor;
+                }
+                ++uIncrementor;
+                strTempProcData = strData_io; // Reset the string
+            }
+        }
+        catch( ... )
+        {
+            return false;
+        }
+        return true;
+    }
+
+
+    bool FillPalindromeMap( const PALINDROME_INFO& stPalinInfo_i, PALINDROME_MAP& PalindromeMap_io )
+    {
+        PALINDROME_MAP::iterator itrPalinMap = PalindromeMap_io.find( stPalinInfo_i.m_strData );
+        if( itrPalinMap == PalindromeMap_io.end())
+        {
+            // New element
+            PalindromeMap_io[ stPalinInfo_i.m_strData ] = stPalinInfo_i;
+            // m_PalinLengthMap[ stPalinInfo_i.m_strData ] = stPalinInfo_i.m_uLength;
+            m_PalinStringVector.push_back( stPalinInfo_i.m_strData );
+        }
+        else
+        {
+            // Already existing string.
+
+            // COMPARE THE SUBSEQUENCES
+            // Compare with the existing indices. Store the one with lesser indices.
+            // Ignore the highest one
+            PALINDROME_INFO stExsitingInfo = itrPalinMap->second;
+            // LESSER ==> Existing first index < New first
+            //            Existing last index < New last
+            if(( stExsitingInfo.m_nStartIndex < stPalinInfo_i.m_nStartIndex ) &&
+               ( stExsitingInfo.m_nEndIndex < stPalinInfo_i.m_nEndIndex ))
+            {
+                // Ignore the new one
+                return true;
+            }
+            // Find out the difference between the end and start indices
+            int nExistingDiff = stExsitingInfo.m_nEndIndex - stExsitingInfo.m_nStartIndex;
+            int nNewDiff = stPalinInfo_i.m_nEndIndex - stPalinInfo_i.m_nStartIndex;
+            // If both are equal
+            if( nExistingDiff == nNewDiff )
+            {
+                // If the start indices are same, then end indices will also be same, as difference is same
+                // Choose the one with smaller start index
+                if( stExsitingInfo.m_nStartIndex < stPalinInfo_i.m_nStartIndex )
+                {
+                    return true;
+                }
+                else // new info has the smallest starting index
+                {
+                    itrPalinMap->second = stPalinInfo_i;
+                    return true;
+                }
+            }
+            else if( nExistingDiff > nNewDiff )
+            {
+                itrPalinMap->second = stPalinInfo_i;
+                return true;
+            }
+            else
+            {
+                // else the existing one is kept as such
+                return true;
+            }
+        }
+        return true;
+    }
+
+
+    bool IsPalindrome( const string& strData_i )
+    {
+        // int nLen = strData_i.length();
+        bool bPalindrome = false;
+        /*
+        int nHalfLen = nLen / 2;
+        for( int nIdx = 0; nIdx < nHalfLen; ++nIdx )
+        {
+            if( strData_i.at(nIdx) != strData_i.at(( nLen - nIdx - 1 )))
+            {
+                bPalindrome = false;
+                break;
+            }
+        }
+        */
+        string strCopy( strData_i.rbegin(), strData_i.rend() );
+        if( 0 == strData_i.compare( strCopy ))
+        {
+            bPalindrome = true;
+        }
+        return bPalindrome;
+    }
+
+    private:
+
+    string m_strParentWord;
+    int m_nNumOfPalindromesNeeded;
+    size_t m_uCurrentProcessingStringStartIndex;
+    size_t m_uCurrentProcessingStringEndIndex;
+    PALINDROME_SET m_PalindromesFoundSet;
+    PALINDROME_LENGTH_MAP m_PalinLengthMap;
+    PALIN_STRING_VECTOR m_PalinStringVector; // to hold the palindromes in the ascending order of legth
+};
+
+
+int main() 
+{
+    // Get the inputs
+    // string strInput = "eeegeeksforskeeggeeks";
+
+    string strInput = "malayalam";
+
+    // Validate
+    
+    // Change the whole string to lower case.
+    
+
+    // Sample input: eeegeeksforskeeggeeks
+    PalindromeFinder PalinFinder( strInput );
+    // PALINDROME_VECTOR_MAP PalindromeVectorMap;
+    // PalinFinder.GetPalindromes( PalindromeVectorMap );
+    PALINDROME_MAP PalindromeMap;
+    PalinFinder.GetPalindromes( PalindromeMap );
+    PalinFinder.SortPalindromes();
+    UINT uProduct = 0;
+    PalinFinder.GetHighestProduct( PalindromeMap, uProduct );
+
+    return 0;
+}
